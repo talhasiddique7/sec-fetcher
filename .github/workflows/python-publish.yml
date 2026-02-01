@@ -4,13 +4,16 @@ on:
   push:
     tags:
       - 'v*'  # triggers on git tags like v0.1.0
+  release:
+    types: [published]
+  workflow_dispatch:
 
 jobs:
   build-and-publish:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -25,9 +28,12 @@ jobs:
       - name: Build package
         run: python -m build
 
+      - name: Check built dists
+        run: python -m twine check dist/*
+
       - name: Publish to PyPI
         env:
           TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.PYPI_API_KEY }}
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN || secrets.PYPI_API_KEY }}
         run: |
           python -m twine upload dist/*
