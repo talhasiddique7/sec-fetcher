@@ -1,16 +1,16 @@
 # secfetcher
 
-Download SEC EDGAR filings by **quarter** or **year** using the official SEC **master index** as the
+git Download SEC EDGAR filings by **quarter** or **year** using the official SEC **master index** as the
 source of truth. `secfetcher` downloads each filing’s EDGAR folder and saves only the file types you
 request.
 
 - **PyPI package name**: `secfetcher`
-- **Python module / CLI name**: `secfetch`
+- **Python module / CLI name**: `secfetch` (also importable as `secfetcher`)
 
 ## Install
 
 ```bash
-python -m pip install secfetcher
+pip install secfetcher
 ```
 
 If your system Python is “externally managed” (PEP 668), install into a virtual environment:
@@ -18,7 +18,7 @@ If your system Python is “externally managed” (PEP 668), install into a virt
 ```bash
 python -m venv .venv
 . .venv/bin/activate
-python -m pip install secfetcher
+pip install secfetcher
 ```
 
 ## Required: SEC User-Agent
@@ -38,7 +38,7 @@ You can also pass a user-agent explicitly in code (if the API you call supports 
 ### Download one quarter
 
 ```python
-from secfetch import download_quarter
+from secfetcher import download_quarter
 
 download_quarter(
     year=2024,
@@ -52,7 +52,7 @@ download_quarter(
 ### Download a full year (all quarters)
 
 ```python
-from secfetch import download_year
+from secfetcher import download_year
 
 download_year(
     year=2024,
