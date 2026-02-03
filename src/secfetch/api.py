@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from pathlib import Path
-from typing import List, Optional, Sequence
+from typing import Callable, List, Optional, Sequence
 
 from secfetch.downloader import DownloadResult, FilingDownloader
 
@@ -17,6 +17,7 @@ async def _run_with_downloader(
     concurrency: int,
     user_agent: Optional[str],
     manifest_path: Optional[str | Path],
+    on_progress: Optional[Callable[[int, int, Optional[DownloadResult], int], None]] = None,
 ) -> List[DownloadResult]:
     dl = FilingDownloader(
         forms=forms,
@@ -26,6 +27,7 @@ async def _run_with_downloader(
         concurrency=concurrency,
         user_agent=user_agent,
         manifest_path=manifest_path,
+        on_progress=on_progress,
     )
     try:
         return await runner(dl)
@@ -44,6 +46,7 @@ def download_quarter(
     concurrency: int = 6,
     user_agent: Optional[str] = None,
     manifest_path: Optional[str | Path] = None,
+    on_progress: Optional[Callable[[int, int, Optional[DownloadResult], int], None]] = None,
 ) -> List[DownloadResult]:
     async def _run() -> List[DownloadResult]:
         return await _run_with_downloader(
@@ -55,6 +58,7 @@ def download_quarter(
             concurrency=concurrency,
             user_agent=user_agent,
             manifest_path=manifest_path,
+            on_progress=on_progress,
         )
 
     return asyncio.run(_run())
@@ -71,6 +75,7 @@ def download_year(
     user_agent: Optional[str] = None,
     manifest_path: Optional[str | Path] = None,
     quarters: Sequence[int] = (1, 2, 3, 4),
+    on_progress: Optional[Callable[[int, int, Optional[DownloadResult], int], None]] = None,
 ) -> List[DownloadResult]:
     async def _run() -> List[DownloadResult]:
         return await _run_with_downloader(
@@ -82,6 +87,7 @@ def download_year(
             concurrency=concurrency,
             user_agent=user_agent,
             manifest_path=manifest_path,
+            on_progress=on_progress,
         )
 
     return asyncio.run(_run())

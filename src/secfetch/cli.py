@@ -2,8 +2,34 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 
 from secfetch import download_quarter, download_year
+from secfetch.downloader import DownloadResult
+
+# Spinner chars for loading style (cycle per completion)
+SPINNER = "|/-\\"
+
+# ANSI colors for progress (no-op if not a TTY)
+CYAN = "\033[36m"
+GREEN = "\033[32m"
+YELLOW = "\033[33m"
+MAGENTA = "\033[35m"
+BOLD = "\033[1m"
+RESET = "\033[0m"
+
+
+def _progress_callback(
+    current: int, total: int, result: DownloadResult | None, in_progress: int = 0
+) -> None:
+    if total == 0:
+        return
+    spin = "..." if result is None else SPINNER[(current - 1) % len(SPINNER)]
+    # Colourful: label in cyan, count in green, spinner in yellow, in_progress in magenta
+    in_progress_part = f" {MAGENTA}({in_progress} downloading){RESET}" if in_progress else ""
+    msg = f"\r  {CYAN}{BOLD}Processing{RESET} {GREEN}{current}/{total}{RESET} {YELLOW}{spin}{RESET}{in_progress_part}  "
+    sys.stderr.write(msg)
+    sys.stderr.flush()
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -31,27 +57,34 @@ def main(argv: list[str] | None = None) -> int:
 
     args = p.parse_args(argv)
 
-    if args.cmd == "quarter":
-        res = download_quarter(
-            year=args.year,
-            quarter=args.quarter,
-            forms=args.forms,
-            data_dir=args.data_dir,
-            file_types=args.file_types,
-            include_amended=args.include_amended,
-            concurrency=args.concurrency,
-            user_agent=args.user_agent,
-        )
-    else:
-        res = download_year(
-            year=args.year,
-            forms=args.forms,
-            data_dir=args.data_dir,
-            file_types=args.file_types,
-            include_amended=args.include_amended,
-            concurrency=args.concurrency,
-            user_agent=args.user_agent,
-        )
+    try:
+        if args.cmd == "quarter":
+            res = download_quarter(
+                year=args.year,
+                quarter=args.quarter,
+                forms=args.forms,
+                data_dir=args.data_dir,
+                file_types=args.file_types,
+                include_amended=args.include_amended,
+                concurrency=args.concurrency,
+                user_agent=args.user_agent,
+                on_progress=_progress_callback,
+            )
+        else:
+            res = download_year(
+                year=args.year,
+                forms=args.forms,
+                data_dir=args.data_dir,
+                file_types=args.file_types,
+                include_amended=args.include_amended,
+                concurrency=args.concurrency,
+                user_agent=args.user_agent,
+                on_progress=_progress_callback,
+            )
+    finally:
+        # Clear progress line so JSON output starts clean
+        sys.stderr.write("\r" + " " * 60 + "\r")
+        sys.stderr.flush()
 
     print(json.dumps([r.__dict__ for r in res], indent=2, default=str))
     return 0

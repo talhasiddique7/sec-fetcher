@@ -66,7 +66,7 @@ def test_quarter_download_deletes_index_on_success(tmp_path: Path, monkeypatch: 
     monkeypatch.setattr(
         dl_mod.SecClient,
         "from_env",
-        classmethod(lambda cls, *, user_agent=None: DummyClient(master_idx_text=master_idx, listing=listing, file_bytes=file_bytes)),
+        classmethod(lambda cls, *, user_agent=None, data_dir=None: DummyClient(master_idx_text=master_idx, listing=listing, file_bytes=file_bytes)),
     )
 
     res = download_quarter(
@@ -110,7 +110,7 @@ def test_quarter_download_keeps_index_on_error(tmp_path: Path, monkeypatch: pyte
     monkeypatch.setattr(
         dl_mod.SecClient,
         "from_env",
-        classmethod(lambda cls, *, user_agent=None: DummyClient(master_idx_text=master_idx, listing=listing, file_bytes=file_bytes)),
+        classmethod(lambda cls, *, user_agent=None, data_dir=None: DummyClient(master_idx_text=master_idx, listing=listing, file_bytes=file_bytes)),
     )
 
     res = download_quarter(

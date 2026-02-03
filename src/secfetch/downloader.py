@@ -5,7 +5,7 @@ import shutil
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
-from typing import List, Optional, Sequence
+from typing import Callable, List, Optional, Sequence
 
 from secfetch.edgar import filing_index_json_url, filing_folder_url
 from secfetch.exceptions import SecFetchError
@@ -75,16 +75,18 @@ class FilingDownloader:
         concurrency: int = 6,
         user_agent: Optional[str] = None,
         manifest_path: Optional[str | Path] = None,
+        on_progress: Optional[Callable[[int, int, Optional["DownloadResult"], int], None]] = None,
     ) -> None:
         self.data_dir = Path(data_dir)
         self.file_types = _normalize_file_types(file_types)
         self.include_amended = include_amended
         self.concurrency = max(1, int(concurrency))
+        self._on_progress = on_progress
 
         accepted = load_accepted_form_types(data_dir=self.data_dir)
         self.forms = validate_forms(forms=forms, accepted=accepted)
 
-        self._client = SecClient.from_env(user_agent=user_agent)
+        self._client = SecClient.from_env(user_agent=user_agent, data_dir=self.data_dir)
         self._manifest = Manifest(Path(manifest_path) if manifest_path else _default_manifest_path(self.data_dir))
         self._manifest.load()
 
@@ -98,9 +100,34 @@ class FilingDownloader:
 
         flt = FilingFilter(forms=self.forms, include_amended=self.include_amended)
         matched = filter_master_rows(rows, flt)
+        total = len(matched)
+
+        if self._on_progress is not None and total > 0:
+            self._on_progress(0, total, None, 0)
 
         sem = asyncio.Semaphore(self.concurrency)
-        tasks = [self._download_one(row=row, sem=sem) for row in matched]
+        completed = 0
+        in_progress = 0
+        progress_lock = asyncio.Lock()
+
+        async def with_progress(row: MasterIndexRow):
+            nonlocal completed, in_progress
+            async with sem:
+                async with progress_lock:
+                    in_progress += 1
+                    if self._on_progress is not None:
+                        self._on_progress(completed, total, None, in_progress)
+                try:
+                    result = await self._download_one(row=row)
+                finally:
+                    async with progress_lock:
+                        in_progress -= 1
+                        completed += 1
+                        if self._on_progress is not None:
+                            self._on_progress(completed, total, result, in_progress)
+            return result
+
+        tasks = [with_progress(row) for row in matched]
         results = await asyncio.gather(*tasks)
         self._manifest.save_atomic()
 
@@ -121,7 +148,7 @@ class FilingDownloader:
             out.extend(await self.download_quarter(year=year, quarter=int(q)))
         return out
 
-    async def _download_one(self, *, row: MasterIndexRow, sem: asyncio.Semaphore) -> DownloadResult:
+    async def _download_one(self, *, row: MasterIndexRow) -> DownloadResult:
         accession = row.accession
         if self._manifest.has(accession):
             return DownloadResult(
@@ -139,66 +166,65 @@ class FilingDownloader:
             accession=accession,
         )
 
-        async with sem:
-            tmp_dir = out_dir.with_name(out_dir.name + ".tmp")
+        tmp_dir = out_dir.with_name(out_dir.name + ".tmp")
+        try:
+            if tmp_dir.exists():
+                shutil.rmtree(tmp_dir)
+            tmp_dir.mkdir(parents=True, exist_ok=True)
+
+            index_url = filing_index_json_url(cik=row.cik, accession=accession)
+            listing = await self._client.get_json(index_url)
+            files = _extract_files_from_index_json(listing, base_folder_url=filing_folder_url(cik=row.cik, accession=accession))
+
+            selected = [f for f in files if _match_file_types(f["name"], self.file_types)]
+            if not selected:
+                raise DownloadError(
+                    f"No files matched file_types={self.file_types} for accession {accession}"
+                )
+
+            for f in selected:
+                content = await self._client.get_bytes(f["href"])
+                (tmp_dir / f["name"]).write_bytes(content)
+
+            # Commit atomically-ish: replace whole folder only after success.
+            out_dir.parent.mkdir(parents=True, exist_ok=True)
+            if out_dir.exists():
+                shutil.rmtree(out_dir)
+            tmp_dir.replace(out_dir)
+
+            self._manifest.upsert(
+                ManifestEntry(
+                    accession=accession,
+                    form_type=row.form_type,
+                    cik=row.cik.zfill(10),
+                    date_filed=row.date_filed.isoformat(),
+                    strategy="index",
+                )
+            )
+
+            return DownloadResult(
+                accession=accession,
+                cik=row.cik,
+                form_type=row.form_type,
+                date_filed=row.date_filed,
+                status="downloaded",
+                output_dir=str(out_dir),
+            )
+        except Exception as e:
+            # Cleanup partials
             try:
                 if tmp_dir.exists():
                     shutil.rmtree(tmp_dir)
-                tmp_dir.mkdir(parents=True, exist_ok=True)
-
-                index_url = filing_index_json_url(cik=row.cik, accession=accession)
-                listing = await self._client.get_json(index_url)
-                files = _extract_files_from_index_json(listing, base_folder_url=filing_folder_url(cik=row.cik, accession=accession))
-
-                selected = [f for f in files if _match_file_types(f["name"], self.file_types)]
-                if not selected:
-                    raise DownloadError(
-                        f"No files matched file_types={self.file_types} for accession {accession}"
-                    )
-
-                for f in selected:
-                    content = await self._client.get_bytes(f["href"])
-                    (tmp_dir / f["name"]).write_bytes(content)
-
-                # Commit atomically-ish: replace whole folder only after success.
-                out_dir.parent.mkdir(parents=True, exist_ok=True)
-                if out_dir.exists():
-                    shutil.rmtree(out_dir)
-                tmp_dir.replace(out_dir)
-
-                self._manifest.upsert(
-                    ManifestEntry(
-                        accession=accession,
-                        form_type=row.form_type,
-                        cik=row.cik.zfill(10),
-                        date_filed=row.date_filed.isoformat(),
-                        strategy="index",
-                    )
-                )
-
-                return DownloadResult(
-                    accession=accession,
-                    cik=row.cik,
-                    form_type=row.form_type,
-                    date_filed=row.date_filed,
-                    status="downloaded",
-                    output_dir=str(out_dir),
-                )
-            except Exception as e:
-                # Cleanup partials
-                try:
-                    if tmp_dir.exists():
-                        shutil.rmtree(tmp_dir)
-                except Exception:
-                    pass
-                return DownloadResult(
-                    accession=accession,
-                    cik=row.cik,
-                    form_type=row.form_type,
-                    date_filed=row.date_filed,
-                    status="error",
-                    error=str(e),
-                )
+            except Exception:
+                pass
+            return DownloadResult(
+                accession=accession,
+                cik=row.cik,
+                form_type=row.form_type,
+                date_filed=row.date_filed,
+                status="error",
+                error=str(e),
+            )
 
 
 def _match_file_types(name: str, file_types: Sequence[str]) -> bool:

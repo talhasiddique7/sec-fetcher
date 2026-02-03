@@ -1,11 +1,23 @@
 # secfetcher
 
-git Download SEC EDGAR filings by **quarter** or **year** using the official SEC **master index** as the
-source of truth. `secfetcher` downloads each filing’s EDGAR folder and saves only the file types you
-request.
+**Download SEC EDGAR filings by quarter or year** using the official SEC master index. Fetch only the form types and file types you need.
 
-- **PyPI package name**: `secfetcher`
-- **Python module / CLI name**: `secfetch` (also importable as `secfetcher`)
+[![PyPI version](https://img.shields.io/pypi/v/secfetcher.svg)](https://pypi.org/project/secfetcher/)
+[![Python 3.10+](https://img.shields.io/pypi/pyversions/secfetcher.svg)](https://pypi.org/project/secfetcher/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
+---
+
+## 📖 Documentation
+
+| Link | Description |
+|------|-------------|
+| **[View documentation (GitHub Pages)](https://your-org.github.io/sec-fetcher/)** | Full docs: install, quickstart, CLI, form types, API reference. |
+| **[docs/index.html](docs/index.html)** | Open in browser for local viewing. |
+
+**Host the docs yourself:** Repo **Settings → Pages →** Deploy from branch **main**, folder **/docs**. See [docs/README.md](docs/README.md).
+
+---
 
 ## Install
 
@@ -13,33 +25,26 @@ request.
 pip install secfetcher
 ```
 
-If your system Python is “externally managed” (PEP 668), install into a virtual environment:
+With a virtual environment (recommended on PEP 668–managed systems):
 
 ```bash
 python -m venv .venv
-. .venv/bin/activate
+. .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install secfetcher
 ```
 
-## Required: SEC User-Agent
+**Package:** `secfetcher` (PyPI) · **Module / CLI:** `secfetch` or `secfetcher`
 
-The SEC requires a descriptive User-Agent string with contact information.
+---
 
-Set it via environment variable:
+## Quick start
 
-```bash
-export SEC_USER_AGENT="Your Name or Company contact@example.com"
-```
-
-You can also pass a user-agent explicitly in code (if the API you call supports it).
-
-## Quickstart (Python API)
-
-### Download one quarter
+### Python API
 
 ```python
-from secfetcher import download_quarter
+from secfetcher import download_quarter, download_year
 
+# One quarter
 download_quarter(
     year=2024,
     quarter=3,
@@ -47,77 +52,65 @@ download_quarter(
     data_dir="data",
     file_types=[".xml", ".htm", ".html", ".pdf"],
 )
+
+# Full year (all quarters)
+download_year(year=2024, forms=["8-K"], data_dir="data", file_types=[".htm", ".html"])
 ```
 
-### Download a full year (all quarters)
-
-```python
-from secfetcher import download_year
-
-download_year(
-    year=2024,
-    forms=["8-K"],
-    data_dir="data",
-    file_types=[".htm", ".html"],
-)
-```
-
-## CLI
+### CLI
 
 ```bash
 secfetch quarter --year 2024 --quarter 3 --forms 10-Q 10-K --data-dir data --file-types .xml .htm .html .pdf
 secfetch year --year 2024 --forms 8-K --data-dir data --file-types .htm .html
-```
-
-Module form also works:
-
-```bash
 python -m secfetch --help
 ```
 
-## Form type allowlist (strict)
+---
 
-`secfetch` only accepts SEC form types listed in:
+## SEC User-Agent (required)
 
-- `data/config/form_types.json` (auto-created on first run), sourced from
-- `src/secfetch/resources/form_types.json` (packaged default)
+The SEC expects a descriptive User-Agent with contact info. Set it via environment variable or pass `user_agent` in code/CLI.
 
-Edit `data/config/form_types.json` to add or remove accepted form types.
+```bash
+export SEC_USER_AGENT="Your Name or Company contact@example.com"
+```
+
+---
+
+## Form type allowlist
+
+Only SEC form types from the allowlist are accepted (e.g. `10-Q`, `10-K`, `8-K`). The list lives in `data/config/form_types.json` (created on first run); edit it to add or remove types. The full list is in the [documentation](docs/index.html#form-types).
+
+---
 
 ## Output layout
 
 ```
 data/
-  index/
-    master/
-      2024/
-        QTR3/
-          master.idx
-  filings/
-    10-Q/
-      0000320193/
-        0000320193-24-000069/
-          <downloaded files...>
-  _state/
-    manifest.json
+  index/master/<year>/QTR<n>/   master index cache
+  filings/<form>/<cik>/<accession>/   downloaded files
+  _state/manifest.json
 ```
 
-## Index cache cleanup (per-quarter)
-
-After a quarter finishes with **no errors**, `secfetch` deletes the cached master index for that
-quarter under `data/index/master/<year>/QTR<q>/`.
+---
 
 ## Development
 
 ```bash
-python -m venv .venv
-. .venv/bin/activate
-python -m pip install -e ".[test]"
+git clone https://github.com/your-org/sec-fetcher.git && cd sec-fetcher
+python -m venv .venv && . .venv/bin/activate
+pip install -e ".[test]"
 pytest
 ```
 
-## Release to PyPI
+---
 
-This repo is set up to publish to PyPI via GitHub Actions. A publish typically happens when you push
-a `v*` tag (for example `v0.1.1`), and can also be run manually from the Actions UI.
+## Publishing (PyPI)
 
+Releases are published via GitHub Actions. Push a version tag (e.g. `v0.1.1`) or run the workflow from the Actions tab.
+
+---
+
+## License
+
+[MIT](LICENSE)

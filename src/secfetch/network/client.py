@@ -1,15 +1,47 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 import random
 from dataclasses import dataclass
-from typing import Any, Optional
+from pathlib import Path
+from typing import Any, List, Optional
 
 import httpx
 
 from secfetch.exceptions import MissingUserAgentError, RateLimitedError
 from secfetch.network.rate_limit import RateLimiter
+
+
+def _user_agent_from_email_json(data_dir: Optional[Path] = None) -> str:
+    """Load emails from data_dir/config/email.json if it exists, else package default. Never creates config folder."""
+    base = (data_dir if data_dir is not None else Path.cwd() / "data").resolve()
+    path = base / "config" / "email.json"
+    raw: Optional[str] = None
+    if path.is_file():
+        try:
+            raw = path.read_text(encoding="utf-8")
+        except OSError:
+            pass
+    if raw is None:
+        try:
+            from importlib.resources import files
+            raw = (files("secfetch.resources") / "email.json").read_text(encoding="utf-8")
+        except Exception:
+            return ""
+    if not raw:
+        return ""
+    try:
+        data = json.loads(raw)
+        emails: List[str] = data.get("emails") if isinstance(data, dict) else []
+        if isinstance(emails, list) and emails:
+            valid = [e for e in emails if isinstance(e, str) and "@" in e]
+            if valid:
+                return f"sec-fetcher {random.choice(valid)}"
+    except json.JSONDecodeError:
+        pass
+    return ""
 
 
 @dataclass(frozen=True)
@@ -48,8 +80,17 @@ class SecClient:
         )
 
     @classmethod
-    def from_env(cls, *, user_agent: Optional[str] = None) -> "SecClient":
-        ua = user_agent or os.getenv("SEC_USER_AGENT", "")
+    def from_env(
+        cls,
+        *,
+        user_agent: Optional[str] = None,
+        data_dir: Optional[Path] = None,
+    ) -> "SecClient":
+        ua = (
+            user_agent
+            or os.getenv("SEC_USER_AGENT")
+            or _user_agent_from_email_json(data_dir=data_dir)
+        )
         return cls(SecClientConfig(user_agent=ua))
 
     async def aclose(self) -> None:
