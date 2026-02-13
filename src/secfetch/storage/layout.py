@@ -19,6 +19,15 @@ def filings_root(data_dir: Path) -> Path:
     return data_dir / "filings"
 
 
-def filing_dir(*, data_dir: Path, form_type: str, cik: str, accession: str) -> Path:
-    return filings_root(data_dir) / form_dir_name(form_type) / cik.zfill(10) / accession
-
+def filing_dir(
+    *,
+    data_dir: Path,
+    form_type: str,
+    cik: str,
+    accession: str,
+    group_label: str | None = None,
+) -> Path:
+    base = filings_root(data_dir) / form_dir_name(form_type)
+    if group_label:
+        return base / group_label / accession
+    return base / cik.zfill(10) / accession

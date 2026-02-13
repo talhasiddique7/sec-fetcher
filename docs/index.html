@@ -1,165 +1,226 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>secfetcher — SEC EDGAR filings downloader</title>
-  <meta name="description" content="Download SEC EDGAR filings by quarter or year using the official master index. Python library and CLI.">
-  <link rel="stylesheet" href="styles.css">
+  <title>sec-fetcher Documentation</title>
+  <meta name="description" content="Detailed, modern docs for sec-fetcher: install, simple/tar modes, ticker & cik filters, latest mode, CLI, API parameters, and troubleshooting.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <div class="page">
-    <header class="header">
-      <div class="header-inner">
-        <h1 class="logo">secfetcher</h1>
-        <p class="tagline">Download SEC EDGAR filings by quarter or year using the official master index.</p>
-        <div class="badges">
-          <a href="https://pypi.org/project/secfetcher/" class="badge" target="_blank" rel="noopener">PyPI</a>
-          <a href="https://github.com/talhasiddique7/sec-fetcher" class="badge badge-gh" target="_blank" rel="noopener">GitHub</a>
+  <div class="bg-orb orb-a"></div>
+  <div class="bg-orb orb-b"></div>
+
+  <header class="hero">
+    <div class="container hero-inner">
+      <div>
+        <p class="eyebrow">SEC EDGAR Downloader</p>
+        <h1>sec-fetcher Documentation</h1>
+        <p class="lead">Modern Python library for SEC filing downloads with two workflows: direct file download and tar-source download with automatic extraction and cleanup.</p>
+        <div class="hero-actions">
+          <a class="btn btn-primary" href="#quickstart">Quickstart</a>
+          <a class="btn" href="#choose-mode">Choose Mode</a>
+          <a class="btn" href="#api">API</a>
+          <a class="btn" href="https://pypi.org/project/sec-fetcher/" target="_blank" rel="noopener">PyPI</a>
         </div>
       </div>
-    </header>
+      <button id="themeToggle" class="theme-toggle" type="button" aria-label="Toggle theme">🌙 Dark</button>
+    </div>
+  </header>
 
-    <main class="main">
-      <nav class="nav" aria-label="Documentation sections">
-        <div class="nav-title">Contents</div>
-        <ul class="nav-list">
-          <li><a href="#install">Install</a></li>
-          <li><a href="#quickstart">Quickstart (Python)</a></li>
-          <li><a href="#cli">CLI</a></li>
-          <li><a href="#form-types">Form types</a></li>
-          <li><a href="#output">Output layout</a></li>
-          <li><a href="#api">API reference</a></li>
-        </ul>
-      </nav>
+  <main class="container layout">
+    <nav class="sidebar" aria-label="Doc sections">
+      <p class="sidebar-title">Contents</p>
+      <a href="#install">Install</a>
+      <a href="#quickstart">Quickstart</a>
+      <a href="#choose-mode">Choose Mode</a>
+      <a href="#filters">Ticker and CIK</a>
+      <a href="#latest">Latest Mode</a>
+      <a href="#output">Output Layout</a>
+      <a href="#cli">CLI</a>
+      <a href="#api">API Parameters</a>
+      <a href="#examples">Examples</a>
+      <a href="#troubleshooting">Troubleshooting</a>
+    </nav>
 
-      <article class="content">
-        <section id="install" class="section">
-          <h2>Install</h2>
-          <p>Requires <strong>Python 3.10+</strong>.</p>
-          <pre class="code-block"><code>pip install secfetcher</code></pre>
-          <p>If your system Python is externally managed (PEP 668), use a virtual environment:</p>
-          <pre class="code-block"><code>python -m venv .venv
-. .venv/bin/activate   # Windows: .venv\Scripts\activate
-pip install secfetcher</code></pre>
-        </section>
+    <article class="content">
+      <section id="install" class="card section">
+        <h2>Install</h2>
+        <p>Install from PyPI:</p>
+        <pre class="code"><code>pip install sec-fetcher</code></pre>
+        <p>Imports:</p>
+        <pre class="code"><code>from secfetch import download_quarter, download_quarter_tar
+# compatibility module
+from secfetcher import download_quarter_tar</code></pre>
+      </section>
 
-        <section id="quickstart" class="section">
-          <h2>Quickstart (Python API)</h2>
+      <section id="quickstart" class="card section">
+        <h2>Quickstart</h2>
+        <h3>Simple Download</h3>
+        <pre class="code"><code>from secfetch import download_quarter
 
-          <h3>Download one quarter</h3>
-          <pre class="code-block"><code>from secfetcher import download_quarter
-
-download_quarter(
+results = download_quarter(
     year=2024,
-    quarter=3,
-    forms=["10-Q", "10-K"],
+    quarter=1,
+    forms=["10-Q"],
+    ticker="AAPL",
     data_dir="data",
-    file_types=[".xml", ".htm", ".html", ".pdf"],
 )</code></pre>
 
-          <h3>Download a full year (all quarters)</h3>
-          <pre class="code-block"><code>from secfetcher import download_year
+        <h3>Tar Download + Extract</h3>
+        <pre class="code"><code>from secfetcher import download_quarter_tar
 
-download_year(
+results = download_quarter_tar(
     year=2024,
-    forms=["8-K"],
+    quarter=1,
+    forms=["10-Q"],
+    ticker="AAPL",
     data_dir="data",
-    file_types=[".htm", ".html"],
 )</code></pre>
-        </section>
+      </section>
 
-        <section id="cli" class="section">
-          <h2>CLI</h2>
-          <p>Same options from the command line:</p>
-          <pre class="code-block"><code>secfetch quarter --year 2024 --quarter 3 --forms 10-Q 10-K --data-dir data --file-types .xml .htm .html .pdf</code></pre>
-          <pre class="code-block"><code>secfetch year --year 2024 --forms 8-K --data-dir data --file-types .htm .html</code></pre>
-          <p>Module form:</p>
-          <pre class="code-block"><code>python -m secfetch --help</code></pre>
-        </section>
-
-        <section id="form-types" class="section">
-          <h2>Form type allowlist</h2>
-          <p><code>secfetch</code> only accepts SEC form types from its allowlist. The list is stored in <code>data/config/form_types.json</code> (created on first run); edit that file to add or remove types.</p>
-          <p class="form-list-label">Accepted form types (scroll to see all):</p>
-          <div class="form-types-scroll" role="list">
-            <span class="form-type-tag">1</span><span class="form-type-tag">1-A</span><span class="form-type-tag">1-A POS</span><span class="form-type-tag">1-A-W</span><span class="form-type-tag">1-A/A</span><span class="form-type-tag">1-K</span><span class="form-type-tag">1-K/A</span><span class="form-type-tag">1-SA</span><span class="form-type-tag">1-SA/A</span><span class="form-type-tag">1-U</span><span class="form-type-tag">1-U/A</span><span class="form-type-tag">1-Z</span><span class="form-type-tag">1/A</span><span class="form-type-tag">10-12B</span><span class="form-type-tag">10-12B/A</span><span class="form-type-tag">10-12G</span><span class="form-type-tag">10-12G/A</span><span class="form-type-tag">10-D</span><span class="form-type-tag">10-D/A</span><span class="form-type-tag">10-K</span><span class="form-type-tag">10-K/A</span><span class="form-type-tag">10-KT</span><span class="form-type-tag">10-Q</span><span class="form-type-tag">10-Q/A</span><span class="form-type-tag">11-K</span><span class="form-type-tag">13F-HR</span><span class="form-type-tag">13F-HR/A</span><span class="form-type-tag">13F-NT</span><span class="form-type-tag">13F-NT/A</span><span class="form-type-tag">144</span><span class="form-type-tag">144/A</span><span class="form-type-tag">15-12G</span><span class="form-type-tag">15-12G/A</span><span class="form-type-tag">15-15D</span><span class="form-type-tag">15F-12B</span><span class="form-type-tag">15F-15D</span><span class="form-type-tag">17AD-27</span><span class="form-type-tag">18-K</span><span class="form-type-tag">18-K/A</span><span class="form-type-tag">19B-4E</span><span class="form-type-tag">20-F</span><span class="form-type-tag">20-F/A</span><span class="form-type-tag">20FR12B</span><span class="form-type-tag">20FR12B/A</span><span class="form-type-tag">24F-2NT</span><span class="form-type-tag">24F-2NT/A</span><span class="form-type-tag">25</span><span class="form-type-tag">25-NSE</span><span class="form-type-tag">25-NSE/A</span><span class="form-type-tag">253G1</span><span class="form-type-tag">253G2</span><span class="form-type-tag">253G3</span><span class="form-type-tag">3</span><span class="form-type-tag">3/A</span><span class="form-type-tag">305B2</span><span class="form-type-tag">305B2/A</span><span class="form-type-tag">4</span><span class="form-type-tag">4/A</span><span class="form-type-tag">40-17F1</span><span class="form-type-tag">40-17F2</span><span class="form-type-tag">40-17G</span><span class="form-type-tag">40-17G/A</span><span class="form-type-tag">40-17GCS</span><span class="form-type-tag">40-24B2</span><span class="form-type-tag">40-33</span><span class="form-type-tag">40-6B</span><span class="form-type-tag">40-6B/A</span><span class="form-type-tag">40-8B25</span><span class="form-type-tag">40-APP</span><span class="form-type-tag">40-APP/A</span><span class="form-type-tag">40-F</span><span class="form-type-tag">40-F/A</span><span class="form-type-tag">40FR12B/A</span><span class="form-type-tag">424B1</span><span class="form-type-tag">424B2</span><span class="form-type-tag">424B3</span><span class="form-type-tag">424B4</span><span class="form-type-tag">424B5</span><span class="form-type-tag">424B7</span><span class="form-type-tag">424B8</span><span class="form-type-tag">424H</span><span class="form-type-tag">424H/A</span><span class="form-type-tag">424I</span><span class="form-type-tag">425</span><span class="form-type-tag">485APOS</span><span class="form-type-tag">485BPOS</span><span class="form-type-tag">485BXT</span><span class="form-type-tag">486APOS</span><span class="form-type-tag">486BPOS</span><span class="form-type-tag">486BXT</span><span class="form-type-tag">487</span><span class="form-type-tag">497</span><span class="form-type-tag">497AD</span><span class="form-type-tag">497J</span><span class="form-type-tag">497K</span><span class="form-type-tag">497VPI</span><span class="form-type-tag">497VPSUB</span><span class="form-type-tag">497VPU</span><span class="form-type-tag">5</span><span class="form-type-tag">5/A</span><span class="form-type-tag">6-K</span><span class="form-type-tag">6-K/A</span><span class="form-type-tag">8-A12B</span><span class="form-type-tag">8-A12B/A</span><span class="form-type-tag">8-A12G</span><span class="form-type-tag">8-A12G/A</span><span class="form-type-tag">8-K</span><span class="form-type-tag">8-K/A</span><span class="form-type-tag">8-K12B</span><span class="form-type-tag">8-K12B/A</span><span class="form-type-tag">8-K12G3</span><span class="form-type-tag">8-K15D5</span><span class="form-type-tag">8-K15D5/A</span><span class="form-type-tag">8-M</span><span class="form-type-tag">ABS-15G</span><span class="form-type-tag">ABS-15G/A</span><span class="form-type-tag">ABS-EE</span><span class="form-type-tag">ABS-EE/A</span><span class="form-type-tag">ANNLRPT</span><span class="form-type-tag">APP NTC</span><span class="form-type-tag">APP ORDR</span><span class="form-type-tag">APP WD</span><span class="form-type-tag">APP WDG</span><span class="form-type-tag">ARS</span><span class="form-type-tag">ARS/A</span><span class="form-type-tag">ATS-N/CA</span><span class="form-type-tag">ATS-N/MA</span><span class="form-type-tag">ATS-N/OFA</span><span class="form-type-tag">ATS-N/UA</span><span class="form-type-tag">AW</span><span class="form-type-tag">AW WD</span><span class="form-type-tag">C</span><span class="form-type-tag">C-AR</span><span class="form-type-tag">C-TR</span><span class="form-type-tag">C-TR-W</span><span class="form-type-tag">C-U</span><span class="form-type-tag">C-U-W</span><span class="form-type-tag">C-W</span><span class="form-type-tag">C/A</span><span class="form-type-tag">C/A-W</span><span class="form-type-tag">CB</span><span class="form-type-tag">CB/A</span><span class="form-type-tag">CERT</span><span class="form-type-tag">CFPORTAL</span><span class="form-type-tag">CFPORTAL-W</span><span class="form-type-tag">CFPORTAL/A</span><span class="form-type-tag">CORRESP</span><span class="form-type-tag">CT ORDER</span><span class="form-type-tag">D</span><span class="form-type-tag">D/A</span><span class="form-type-tag">DEF 14A</span><span class="form-type-tag">DEF 14C</span><span class="form-type-tag">DEFA14A</span><span class="form-type-tag">DEFA14C</span><span class="form-type-tag">DEFC14A</span><span class="form-type-tag">DEFM14A</span><span class="form-type-tag">DEFM14C</span><span class="form-type-tag">DEFR14A</span><span class="form-type-tag">DEL AM</span><span class="form-type-tag">DFAN14A</span><span class="form-type-tag">DFRN14A</span><span class="form-type-tag">DOS</span><span class="form-type-tag">DOS/A</span><span class="form-type-tag">DRS</span><span class="form-type-tag">DRS/A</span><span class="form-type-tag">DRSLTR</span><span class="form-type-tag">DSTRBRPT</span><span class="form-type-tag">DSTRBRPT/A</span><span class="form-type-tag">EFFECT</span><span class="form-type-tag">F-1</span><span class="form-type-tag">F-1/A</span><span class="form-type-tag">F-10</span><span class="form-type-tag">F-10/A</span><span class="form-type-tag">F-1MEF</span><span class="form-type-tag">F-3</span><span class="form-type-tag">F-3/A</span><span class="form-type-tag">F-3ASR</span><span class="form-type-tag">F-3MEF</span><span class="form-type-tag">F-4</span><span class="form-type-tag">F-4/A</span><span class="form-type-tag">F-6</span><span class="form-type-tag">F-6 POS</span><span class="form-type-tag">F-6/A</span><span class="form-type-tag">F-6EF</span><span class="form-type-tag">F-N</span><span class="form-type-tag">F-X</span><span class="form-type-tag">F-X/A</span><span class="form-type-tag">FOCUSN</span><span class="form-type-tag">FOCUSN/A</span><span class="form-type-tag">FWP</span><span class="form-type-tag">Form Type</span><span class="form-type-tag">G-FIN/A</span><span class="form-type-tag">IRANNOTICE</span><span class="form-type-tag">MA</span><span class="form-type-tag">MA-A</span><span class="form-type-tag">MA-I</span><span class="form-type-tag">MA-I/A</span><span class="form-type-tag">MA-W</span><span class="form-type-tag">MA/A</span><span class="form-type-tag">MSD/A</span><span class="form-type-tag">N-14</span><span class="form-type-tag">N-14 8C</span><span class="form-type-tag">N-14 8C/A</span><span class="form-type-tag">N-14/A</span><span class="form-type-tag">N-18F1</span><span class="form-type-tag">N-1A</span><span class="form-type-tag">N-1A/A</span><span class="form-type-tag">N-2</span><span class="form-type-tag">N-2/A</span><span class="form-type-tag">N-23C-2</span><span class="form-type-tag">N-23C3A</span><span class="form-type-tag">N-23C3A/A</span><span class="form-type-tag">N-2ASR</span><span class="form-type-tag">N-2MEF</span><span class="form-type-tag">N-30B-2</span><span class="form-type-tag">N-30D</span><span class="form-type-tag">N-4</span><span class="form-type-tag">N-54A</span><span class="form-type-tag">N-54C</span><span class="form-type-tag">N-6</span><span class="form-type-tag">N-6F/A</span><span class="form-type-tag">N-8A</span><span class="form-type-tag">N-8A/A</span><span class="form-type-tag">N-8B-2/A</span><span class="form-type-tag">N-8F</span><span class="form-type-tag">N-8F NTC</span><span class="form-type-tag">N-8F ORDR</span><span class="form-type-tag">N-8F/A</span><span class="form-type-tag">N-CEN</span><span class="form-type-tag">N-CEN/A</span><span class="form-type-tag">N-CSR</span><span class="form-type-tag">N-CSR/A</span><span class="form-type-tag">N-CSRS</span><span class="form-type-tag">N-CSRS/A</span><span class="form-type-tag">N-MFP3</span><span class="form-type-tag">N-MFP3/A</span><span class="form-type-tag">N-PX</span><span class="form-type-tag">N-PX/A</span><span class="form-type-tag">N-VP/A</span><span class="form-type-tag">N-VPFS</span><span class="form-type-tag">N-VPFS/A</span><span class="form-type-tag">NPORT-P</span><span class="form-type-tag">NPORT-P/A</span><span class="form-type-tag">NRSRO-CE</span><span class="form-type-tag">NRSRO-UPD</span><span class="form-type-tag">NT 10-K</span><span class="form-type-tag">NT 10-K/A</span><span class="form-type-tag">NT 10-Q</span><span class="form-type-tag">NT 10-Q/A</span><span class="form-type-tag">NT 20-F</span><span class="form-type-tag">NT N-CEN</span><span class="form-type-tag">NT NPORT-P</span><span class="form-type-tag">NT-NCEN</span><span class="form-type-tag">NT-NCEN/A</span><span class="form-type-tag">NT-NCSR</span><span class="form-type-tag">NT-NCSR/A</span><span class="form-type-tag">NTFNCEN</span><span class="form-type-tag">NTFNCSR</span><span class="form-type-tag">POS AM</span><span class="form-type-tag">POS AMI</span><span class="form-type-tag">POS EX</span><span class="form-type-tag">POSASR</span><span class="form-type-tag">PRE 14A</span><span class="form-type-tag">PRE 14C</span><span class="form-type-tag">PREC14A</span><span class="form-type-tag">PREM14A</span><span class="form-type-tag">PREM14C</span><span class="form-type-tag">PRER14A</span><span class="form-type-tag">PRER14C</span><span class="form-type-tag">PRRN14A</span><span class="form-type-tag">PX14A6G</span><span class="form-type-tag">QRTLYRPT</span><span class="form-type-tag">QUALIF</span><span class="form-type-tag">REVOKED</span><span class="form-type-tag">RW</span><span class="form-type-tag">RW WD</span><span class="form-type-tag">S-1</span><span class="form-type-tag">S-1/A</span><span class="form-type-tag">S-11</span><span class="form-type-tag">S-11/A</span><span class="form-type-tag">S-11MEF</span><span class="form-type-tag">S-1MEF</span><span class="form-type-tag">S-3</span><span class="form-type-tag">S-3/A</span><span class="form-type-tag">S-3ASR</span><span class="form-type-tag">S-3DPOS</span><span class="form-type-tag">S-3MEF</span><span class="form-type-tag">S-4</span><span class="form-type-tag">S-4/A</span><span class="form-type-tag">S-4MEF</span><span class="form-type-tag">S-6</span><span class="form-type-tag">S-6/A</span><span class="form-type-tag">S-8</span><span class="form-type-tag">S-8 POS</span><span class="form-type-tag">S-B</span><span class="form-type-tag">S-B/A</span><span class="form-type-tag">SBSE-A/A</span><span class="form-type-tag">SBSE-BD/A</span><span class="form-type-tag">SBSE/A</span><span class="form-type-tag">SBSEF/A</span><span class="form-type-tag">SC 13D/A</span><span class="form-type-tag">SC 13E3</span><span class="form-type-tag">SC 13E3/A</span><span class="form-type-tag">SC 14D9</span><span class="form-type-tag">SC 14D9/A</span><span class="form-type-tag">SC 14F1</span><span class="form-type-tag">SC 14N</span><span class="form-type-tag">SC TO-C</span><span class="form-type-tag">SC TO-I</span><span class="form-type-tag">SC TO-I/A</span><span class="form-type-tag">SC TO-T</span><span class="form-type-tag">SC TO-T/A</span><span class="form-type-tag">SC14D9C</span><span class="form-type-tag">SCHEDULE 13D</span><span class="form-type-tag">SCHEDULE 13D/A</span><span class="form-type-tag">SCHEDULE 13G</span><span class="form-type-tag">SCHEDULE 13G/A</span><span class="form-type-tag">SD</span><span class="form-type-tag">SEC STAFF ACTION</span><span class="form-type-tag">SEC STAFF LETTER</span><span class="form-type-tag">SF-1</span><span class="form-type-tag">SF-1/A</span><span class="form-type-tag">SF-3</span><span class="form-type-tag">SF-3/A</span><span class="form-type-tag">SP 15D2</span><span class="form-type-tag">SUPPL</span><span class="form-type-tag">T-3</span><span class="form-type-tag">T-3/A</span><span class="form-type-tag">TA-1</span><span class="form-type-tag">TA-1/A</span><span class="form-type-tag">TA-2</span><span class="form-type-tag">TA-2/A</span><span class="form-type-tag">TA-W</span><span class="form-type-tag">UPLOAD</span><span class="form-type-tag">X-17A-5</span><span class="form-type-tag">X-17A-5/A</span>
+      <section id="choose-mode" class="card section">
+        <h2>Choose Mode</h2>
+        <div class="grid-two">
+          <div>
+            <h3>Simple (non-tar)</h3>
+            <p>Functions: <code>download_quarter</code>, <code>download_year</code></p>
+            <ul>
+              <li>Downloads selected files directly from SEC folder listing.</li>
+              <li>Best for straightforward per-filing file retrieval.</li>
+              <li>Supports <code>ticker</code> and <code>cik</code> filtering.</li>
+            </ul>
           </div>
-        </section>
+          <div>
+            <h3>Tar workflow</h3>
+            <p>Functions: <code>download_quarter_tar</code>, <code>download_year_tar</code></p>
+            <ul>
+              <li>Downloads filing tar source from DataMule tar endpoint.</li>
+              <li>By default extracts into accession folders and deletes tar artifacts.</li>
+              <li>Supports <code>limit</code> and higher default concurrency.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
 
-        <section id="output" class="section">
-          <h2>Output layout</h2>
-          <pre class="code-block"><code>data/
-  index/
-    master/
-      2024/
-        QTR3/
-          master.idx
+      <section id="filters" class="card section">
+        <h2>Ticker and CIK Filtering</h2>
+        <p>Both simple and tar workflows support filters. You can pass one value or a list.</p>
+        <pre class="code"><code># ticker
+download_quarter(year=2024, quarter=1, forms=["8-K"], ticker="AMD")
+
+# cik
+download_quarter_tar(year=2024, quarter=1, forms=["10-Q"], cik="320193")
+
+# list
+download_year_tar(year=2024, forms=["10-Q"], ticker=["AMD", "NVDA"])</code></pre>
+        <p>Ticker mapping uses packaged <code>listed_filer_metadata.csv</code>.</p>
+      </section>
+
+      <section id="latest" class="card section">
+        <h2>Latest Single Filing Mode</h2>
+        <p>Supported in both <code>download_quarter</code> and <code>download_quarter_tar</code>.</p>
+        <p>Rules:</p>
+        <ul>
+          <li>Omit all three: <code>year</code>, <code>quarter</code>, <code>forms</code>.</li>
+          <li>Provide at least one of: <code>ticker</code> or <code>cik</code>.</li>
+        </ul>
+        <pre class="code"><code># simple latest
+download_quarter(ticker="AAPL")
+download_quarter(cik="320193")
+
+# tar latest
+download_quarter_tar(ticker="AAPL")
+download_quarter_tar(cik="320193")</code></pre>
+      </section>
+
+      <section id="output" class="card section">
+        <h2>Output Layout</h2>
+        <pre class="code"><code>data/
   filings/
     10-Q/
       0000320193/
         0000320193-24-000069/
-          &lt;downloaded files...&gt;
+          ...documents...
   _state/
     manifest.json</code></pre>
-        </section>
+        <p>If you pass a single ticker/cik, folder grouping can use that identifier under the form folder.</p>
+      </section>
 
-        <section id="api" class="section">
-          <h2>API reference</h2>
+      <section id="cli" class="card section">
+        <h2>CLI</h2>
+        <pre class="code"><code>secfetch quarter --year 2024 --quarter 1 --forms 10-Q --ticker AAPL
+secfetch year --year 2024 --forms 8-K --cik 320193
+python -m secfetch --help</code></pre>
+      </section>
 
-          <h3><code>download_quarter</code></h3>
-          <pre class="code-block"><code>download_quarter(
-    *,
-    year: int,
-    quarter: int,
-    forms: Sequence[str],
-    data_dir: str | Path = "data",
-    file_types: Sequence[str] = (".htm", ".html", ".xml", ".xbrl", ".pdf"),
-    include_amended: bool = False,
-    concurrency: int = 6,
-    user_agent: Optional[str] = None,
-    manifest_path: Optional[str | Path] = None,
-    on_progress: Optional[Callable] = None,
-) -> List[DownloadResult]</code></pre>
+      <section id="api" class="card section">
+        <h2>API Parameters</h2>
+        <h3>Common</h3>
+        <ul>
+          <li><code>year</code>, <code>quarter</code>, <code>forms</code></li>
+          <li><code>ticker</code>, <code>cik</code></li>
+          <li><code>data_dir</code>, <code>concurrency</code>, <code>show_progress</code></li>
+          <li><code>user_agent</code>, <code>manifest_path</code></li>
+        </ul>
+        <h3>Tar-specific</h3>
+        <ul>
+          <li><code>limit</code> (cap number of filings)</li>
+          <li><code>extract=True</code> (default; extracts and removes tar files)</li>
+          <li><code>tar_provider="datamule"</code> (default)</li>
+          <li><code>datamule_api_key</code> (optional)</li>
+        </ul>
+      </section>
 
-          <h3><code>download_year</code></h3>
-          <pre class="code-block"><code>download_year(
-    *,
-    year: int,
-    forms: Sequence[str],
-    data_dir: str | Path = "data",
-    file_types: Sequence[str] = (".htm", ".html", ".xml", ".xbrl", ".pdf"),
-    include_amended: bool = False,
-    concurrency: int = 6,
-    user_agent: Optional[str] = None,
-    manifest_path: Optional[str | Path] = None,
-    quarters: Sequence[int] = (1, 2, 3, 4),
-    on_progress: Optional[Callable] = None,
-) -> List[DownloadResult]</code></pre>
+      <section id="examples" class="card section">
+        <h2>Detailed Examples</h2>
+        <h3>Quarter by ticker, simple</h3>
+        <pre class="code"><code>download_quarter(
+    year=2024,
+    quarter=2,
+    forms=["8-K", "10-Q"],
+    ticker="MSFT",
+    data_dir="data",
+    show_progress=True,
+)</code></pre>
 
-          <h3>Exceptions</h3>
-          <ul class="list">
-            <li><code>SecFetchError</code> — base exception</li>
-            <li><code>MissingUserAgentError</code> — SEC user-agent not provided</li>
-            <li><code>RateLimitedError</code> — SEC rate limiting hit</li>
-            <li><code>MasterIndexParseError</code> — master index parse failure</li>
-          </ul>
-        </section>
+        <h3>Year by CIK, tar, limited</h3>
+        <pre class="code"><code>download_year_tar(
+    year=2024,
+    forms=["10-Q"],
+    cik="320193",
+    limit=30,
+    data_dir="data",
+)</code></pre>
 
-        <section class="section">
-          <h2>Index cache</h2>
-          <p>After a quarter completes with no errors, <code>secfetch</code> removes the cached master index for that quarter under <code>data/index/master/&lt;year&gt;/QTR&lt;q&gt;/</code>.</p>
-        </section>
-      </article>
-    </main>
+        <h3>Latest single filing, tar</h3>
+        <pre class="code"><code>download_quarter_tar(
+    ticker="AAPL",
+    data_dir="data",
+)</code></pre>
+      </section>
 
-    <footer class="footer">
-      <p>secfetcher — MIT License. PyPI: <code>secfetcher</code>, module: <code>secfetch</code> / <code>secfetcher</code>.</p>
-    </footer>
-  </div>
+      <section id="troubleshooting" class="card section">
+        <h2>Troubleshooting</h2>
+        <ul>
+          <li><strong>No results:</strong> verify form type and ticker/cik mapping.</li>
+          <li><strong>SEC errors:</strong> set valid <code>SEC_USER_AGENT</code> with contact email.</li>
+          <li><strong>Slow download:</strong> tune <code>concurrency</code> and use <code>limit</code> for testing.</li>
+          <li><strong>Latest mode error:</strong> provide <code>ticker</code> or <code>cik</code> when omitting year/quarter/forms.</li>
+        </ul>
+      </section>
+    </article>
+  </main>
+
+  <footer class="footer">
+    <div class="container">
+      <p>sec-fetcher docs. Package: <code>sec-fetcher</code>. Modules: <code>secfetch</code> and <code>secfetcher</code>.</p>
+    </div>
+  </footer>
+
   <script src="script.js"></script>
 </body>
 </html>

@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 import asyncio
+import io
+import json
 import shutil
+import tarfile
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
 from typing import Callable, List, Optional, Sequence
 
+from secfetch.entities import resolve_cik_filter, resolve_output_group_label
 from secfetch.edgar import filing_index_json_url, filing_folder_url
 from secfetch.exceptions import SecFetchError
 from secfetch.forms import load_accepted_form_types, validate_forms
@@ -55,6 +59,10 @@ def _default_manifest_path(data_dir: Path) -> Path:
     return data_dir / "_state" / "manifest.json"
 
 
+def _filing_tar_path(*, data_dir: Path, form_type: str, cik: str, accession: str) -> Path:
+    return data_dir / "filings_tar" / form_type / cik.zfill(10) / f"{accession}.tar"
+
+
 class FilingDownloader:
     """
     Index-driven downloader:
@@ -72,16 +80,24 @@ class FilingDownloader:
         data_dir: str | Path = "data",
         file_types: Sequence[str] = (".htm", ".html", ".xml", ".xbrl", ".pdf"),
         include_amended: bool = False,
+        cik: Optional[str | int | Sequence[str | int]] = None,
+        ticker: Optional[str | Sequence[str]] = None,
         concurrency: int = 6,
         user_agent: Optional[str] = None,
         manifest_path: Optional[str | Path] = None,
+        output_format: str = "files",
         on_progress: Optional[Callable[[int, int, Optional["DownloadResult"], int], None]] = None,
     ) -> None:
         self.data_dir = Path(data_dir)
         self.file_types = _normalize_file_types(file_types)
         self.include_amended = include_amended
+        self.cik_set = resolve_cik_filter(cik=cik, ticker=ticker)
+        self.output_group_label = resolve_output_group_label(cik=cik, ticker=ticker)
         self.concurrency = max(1, int(concurrency))
         self._on_progress = on_progress
+        if output_format not in ("files", "tar"):
+            raise ValueError("output_format must be 'files' or 'tar'")
+        self.output_format = output_format
 
         accepted = load_accepted_form_types(data_dir=self.data_dir)
         self.forms = validate_forms(forms=forms, accepted=accepted)
@@ -100,6 +116,8 @@ class FilingDownloader:
 
         flt = FilingFilter(forms=self.forms, include_amended=self.include_amended)
         matched = filter_master_rows(rows, flt)
+        if self.cik_set is not None:
+            matched = [r for r in matched if r.cik.zfill(10) in self.cik_set]
         total = len(matched)
 
         if self._on_progress is not None and total > 0:
@@ -150,26 +168,48 @@ class FilingDownloader:
 
     async def _download_one(self, *, row: MasterIndexRow) -> DownloadResult:
         accession = row.accession
-        if self._manifest.has(accession):
-            return DownloadResult(
-                accession=accession,
-                cik=row.cik,
-                form_type=row.form_type,
-                date_filed=row.date_filed,
-                status="skipped",
-            )
-
         out_dir = filing_dir(
             data_dir=self.data_dir,
             form_type=row.form_type,
             cik=row.cik,
             accession=accession,
+            group_label=self.output_group_label,
         )
+        tar_path = _filing_tar_path(
+            data_dir=self.data_dir,
+            form_type=row.form_type,
+            cik=row.cik,
+            accession=accession,
+        )
+        entry = self._manifest.get(accession)
+        if entry is not None:
+            if self.output_format == "files":
+                if entry.strategy == "index" and out_dir.exists():
+                    return DownloadResult(
+                        accession=accession,
+                        cik=row.cik,
+                        form_type=row.form_type,
+                        date_filed=row.date_filed,
+                        status="skipped",
+                    )
+            else:
+                if entry.strategy == "index_tar" and tar_path.exists():
+                    return DownloadResult(
+                        accession=accession,
+                        cik=row.cik,
+                        form_type=row.form_type,
+                        date_filed=row.date_filed,
+                        status="skipped",
+                        output_dir=str(tar_path),
+                    )
 
         tmp_dir = out_dir.with_name(out_dir.name + ".tmp")
+        tmp_tar = tar_path.with_suffix(".tmp")
         try:
             if tmp_dir.exists():
                 shutil.rmtree(tmp_dir)
+            if tmp_tar.exists():
+                tmp_tar.unlink()
             tmp_dir.mkdir(parents=True, exist_ok=True)
 
             index_url = filing_index_json_url(cik=row.cik, accession=accession)
@@ -186,11 +226,40 @@ class FilingDownloader:
                 content = await self._client.get_bytes(f["href"])
                 (tmp_dir / f["name"]).write_bytes(content)
 
-            # Commit atomically-ish: replace whole folder only after success.
-            out_dir.parent.mkdir(parents=True, exist_ok=True)
-            if out_dir.exists():
-                shutil.rmtree(out_dir)
-            tmp_dir.replace(out_dir)
+            if self.output_format == "files":
+                # Commit atomically-ish: replace whole folder only after success.
+                out_dir.parent.mkdir(parents=True, exist_ok=True)
+                if out_dir.exists():
+                    shutil.rmtree(out_dir)
+                tmp_dir.replace(out_dir)
+                output_path = str(out_dir)
+                strategy = "index"
+            else:
+                tmp_tar.parent.mkdir(parents=True, exist_ok=True)
+                with tarfile.open(tmp_tar, mode="w") as tf:
+                    metadata = {
+                        "accession": accession,
+                        "cik": row.cik.zfill(10),
+                        "form_type": row.form_type,
+                        "date_filed": row.date_filed.isoformat(),
+                        "files": [f["name"] for f in selected],
+                    }
+                    metadata_bytes = json.dumps(metadata).encode("utf-8")
+                    meta_info = tarfile.TarInfo(name="metadata.json")
+                    meta_info.size = len(metadata_bytes)
+                    tf.addfile(meta_info, io.BytesIO(metadata_bytes))
+                    for f in selected:
+                        content = (tmp_dir / f["name"]).read_bytes()
+                        info = tarfile.TarInfo(name=f["name"])
+                        info.size = len(content)
+                        tf.addfile(info, io.BytesIO(content))
+
+                if tar_path.exists():
+                    tar_path.unlink()
+                tmp_tar.replace(tar_path)
+                shutil.rmtree(tmp_dir)
+                output_path = str(tar_path)
+                strategy = "index_tar"
 
             self._manifest.upsert(
                 ManifestEntry(
@@ -198,7 +267,7 @@ class FilingDownloader:
                     form_type=row.form_type,
                     cik=row.cik.zfill(10),
                     date_filed=row.date_filed.isoformat(),
-                    strategy="index",
+                    strategy=strategy,
                 )
             )
 
@@ -208,13 +277,15 @@ class FilingDownloader:
                 form_type=row.form_type,
                 date_filed=row.date_filed,
                 status="downloaded",
-                output_dir=str(out_dir),
+                output_dir=output_path,
             )
         except Exception as e:
             # Cleanup partials
             try:
                 if tmp_dir.exists():
                     shutil.rmtree(tmp_dir)
+                if tmp_tar.exists():
+                    tmp_tar.unlink()
             except Exception:
                 pass
             return DownloadResult(
@@ -257,4 +328,3 @@ def _extract_files_from_index_json(payload: object, *, base_folder_url: str) -> 
             continue
         out.append({"name": name, "href": base_folder_url + name})
     return out
-

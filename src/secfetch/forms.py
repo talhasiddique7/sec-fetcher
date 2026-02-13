@@ -58,7 +58,11 @@ def load_accepted_form_types(*, data_dir: Optional[Path] = None) -> List[str]:
     if data_dir is None:
         return _load_packaged_form_types().accepted_form_types
 
-    json_path = ensure_form_types_json(data_dir=data_dir)
+    # Do not create data/config by default. Use local file only if user already created it.
+    json_path = data_dir / "config" / "form_types.json"
+    if not json_path.exists():
+        return _load_packaged_form_types().accepted_form_types
+
     payload = json.loads(json_path.read_text(encoding="utf-8"))
     accepted = payload.get("accepted_form_types")
     if not isinstance(accepted, list) or not all(isinstance(x, str) for x in accepted):
@@ -81,4 +85,3 @@ def validate_forms(*, forms: Sequence[str], accepted: Iterable[str]) -> List[str
             + f". Allowed forms come from form_types.json (e.g. {sample}, ...)."
         )
     return requested
-

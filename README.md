@@ -1,8 +1,12 @@
-# secfetcher
+# sec-fetcher
 
-**Download SEC EDGAR filings by quarter or year** using the official SEC master index. Fetch only the form types and file types you need.
+Download SEC EDGAR filings with:
+- simple file download mode
+- tar source download + extract mode
+- filtering by `ticker` or `cik`
+- latest single filing mode
 
-[![PyPI version](https://img.shields.io/pypi/v/secfetcher.svg)](https://pypi.org/project/secfetcher/)
+[![PyPI version](https://img.shields.io/pypi/v/sec-fetcher.svg)](https://pypi.org/project/sec-fetcher/)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
@@ -24,7 +28,7 @@
 **Requires Python 3.10+.**
 
 ```bash
-pip install secfetcher
+pip install sec-fetcher
 ```
 
 With a virtual environment (recommended on PEP 668–managed systems):
@@ -32,10 +36,10 @@ With a virtual environment (recommended on PEP 668–managed systems):
 ```bash
 python -m venv .venv
 . .venv/bin/activate   # Windows: .venv\Scripts\activate
-pip install secfetcher
+pip install sec-fetcher
 ```
 
-**Package:** `secfetcher` (PyPI) · **Module / CLI:** `secfetch` or `secfetcher`
+**Package:** `sec-fetcher` (PyPI) · **Module / CLI:** `secfetch` or `secfetcher`
 
 ---
 
@@ -44,26 +48,56 @@ pip install secfetcher
 ### Python API
 
 ```python
-from secfetcher import download_quarter, download_year
+from secfetch import download_quarter, download_year
+from secfetcher import download_quarter_tar
 
-# One quarter
+# Simple: one quarter
 download_quarter(
-    year=2024,
-    quarter=3,
-    forms=["10-Q", "10-K"],
+    year=2024, quarter=1, forms=["10-Q"],
+    ticker="AAPL",
     data_dir="data",
-    file_types=[".xml", ".htm", ".html", ".pdf"],
 )
 
-# Full year (all quarters)
-download_year(year=2024, forms=["8-K"], data_dir="data", file_types=[".htm", ".html"])
+# Tar: one quarter (downloads tar source, extracts, removes tar files)
+download_quarter_tar(
+    year=2024, quarter=1,
+    forms=["10-Q"],
+    ticker="AAPL",
+    data_dir="data",
+)
+
+# Simple: full year
+download_year(
+    year=2024, forms=["8-K"], cik="320193", data_dir="data"
+)
+```
+
+### Latest single filing mode
+
+Supported in both `download_quarter` and `download_quarter_tar`.
+
+Rule:
+- omit `year`, `quarter`, and `forms`
+- provide `ticker` or `cik`
+
+```python
+from secfetch import download_quarter
+from secfetcher import download_quarter_tar
+
+# Simple latest
+download_quarter(ticker="AAPL")
+download_quarter(cik="320193")
+
+# Tar latest
+download_quarter_tar(ticker="AAPL")
+download_quarter_tar(cik="320193")
 ```
 
 ### CLI
 
 ```bash
-secfetch quarter --year 2024 --quarter 3 --forms 10-Q 10-K --data-dir data --file-types .xml .htm .html .pdf
-secfetch year --year 2024 --forms 8-K --data-dir data --file-types .htm .html
+secfetch quarter --year 2024 --quarter 1 --forms 10-Q --ticker AAPL --data-dir data
+secfetch year --year 2024 --forms 8-K --cik 320193 --data-dir data
 python -m secfetch --help
 ```
 
@@ -81,7 +115,7 @@ export SEC_USER_AGENT="Your Name or Company contact@example.com"
 
 ## Form type allowlist
 
-Only SEC form types from the allowlist are accepted (e.g. `10-Q`, `10-K`, `8-K`). The list lives in `data/config/form_types.json` (created on first run); edit it to add or remove types. The full list is in the [documentation](docs/index.html#form-types).
+Only SEC form types from the allowlist are accepted (e.g. `10-Q`, `10-K`, `8-K`). If `data/config/form_types.json` exists, it is used; otherwise packaged defaults are used.
 
 ---
 
@@ -89,10 +123,24 @@ Only SEC form types from the allowlist are accepted (e.g. `10-Q`, `10-K`, `8-K`)
 
 ```
 data/
-  index/master/<year>/QTR<n>/   master index cache
-  filings/<form>/<cik>/<accession>/   downloaded files
+  index/master/<year>/QTR<n>/    master index cache
+  filings/<form>/<group>/<accession>/  downloaded files
   _state/manifest.json
 ```
+
+`<group>` is usually CIK.  
+If a single `ticker` or single `cik` filter is provided, that identifier may be used as group folder.
+
+---
+
+## Important defaults
+
+- progress display: enabled by default
+- tar mode concurrency: `20`
+- tar mode extraction: `True` (tar files removed after extraction)
+- form types:
+  - uses `data/config/form_types.json` only if it already exists
+  - otherwise uses packaged defaults
 
 ---
 
@@ -109,7 +157,7 @@ pytest
 
 ## Publishing (PyPI)
 
-Releases are published via GitHub Actions. Push a version tag (e.g. `v0.1.1`) or run the workflow from the Actions tab.
+Releases are published via GitHub Actions. Push a version tag (e.g. `v0.1.3`) or run the workflow from the Actions tab.
 
 ---
 

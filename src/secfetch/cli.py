@@ -40,6 +40,8 @@ def main(argv: list[str] | None = None) -> int:
     q.add_argument("--year", type=int, required=True)
     q.add_argument("--quarter", type=int, required=True, choices=[1, 2, 3, 4])
     q.add_argument("--forms", nargs="+", required=True)
+    q.add_argument("--cik", nargs="+", default=None)
+    q.add_argument("--ticker", nargs="+", default=None)
     q.add_argument("--data-dir", default="data")
     q.add_argument("--file-types", nargs="+", default=[".htm", ".html", ".xml", ".xbrl", ".pdf"])
     q.add_argument("--include-amended", action="store_true")
@@ -49,6 +51,8 @@ def main(argv: list[str] | None = None) -> int:
     y = sub.add_parser("year", help="Download filings for a year (all quarters)")
     y.add_argument("--year", type=int, required=True)
     y.add_argument("--forms", nargs="+", required=True)
+    y.add_argument("--cik", nargs="+", default=None)
+    y.add_argument("--ticker", nargs="+", default=None)
     y.add_argument("--data-dir", default="data")
     y.add_argument("--file-types", nargs="+", default=[".htm", ".html", ".xml", ".xbrl", ".pdf"])
     y.add_argument("--include-amended", action="store_true")
@@ -63,6 +67,8 @@ def main(argv: list[str] | None = None) -> int:
                 year=args.year,
                 quarter=args.quarter,
                 forms=args.forms,
+                cik=args.cik,
+                ticker=args.ticker,
                 data_dir=args.data_dir,
                 file_types=args.file_types,
                 include_amended=args.include_amended,
@@ -74,6 +80,8 @@ def main(argv: list[str] | None = None) -> int:
             res = download_year(
                 year=args.year,
                 forms=args.forms,
+                cik=args.cik,
+                ticker=args.ticker,
                 data_dir=args.data_dir,
                 file_types=args.file_types,
                 include_amended=args.include_amended,
@@ -92,4 +100,3 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

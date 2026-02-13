@@ -1,86 +1,73 @@
 (function () {
   "use strict";
 
-  // Mark nav link as active when section is in view
-  var sections = document.querySelectorAll(".content .section[id]");
-  var navLinks = document.querySelectorAll(".nav-list a[href^='#']");
-
-  function getActiveId() {
-    var top = window.scrollY || document.documentElement.scrollTop;
-    var headerOffset = 100;
-    for (var i = sections.length - 1; i >= 0; i--) {
-      var section = sections[i];
-      var id = section.getAttribute("id");
-      if (!id) continue;
-      var el = document.getElementById(id);
-      if (el && el.offsetTop - headerOffset <= top) return id;
-    }
-    return sections[0] ? sections[0].getAttribute("id") : null;
+  var root = document.documentElement;
+  var toggle = document.getElementById("themeToggle");
+  var savedTheme = localStorage.getItem("secfetch_docs_theme");
+  if (savedTheme === "light" || savedTheme === "dark") {
+    root.setAttribute("data-theme", savedTheme);
   }
 
-  function updateNav() {
-    var activeId = getActiveId();
-    navLinks.forEach(function (link) {
-      var href = link.getAttribute("href");
-      var id = href && href.startsWith("#") ? href.slice(1) : null;
-      link.classList.toggle("is-active", id === activeId);
+  function syncToggleLabel() {
+    var theme = root.getAttribute("data-theme") || "dark";
+    if (!toggle) return;
+    toggle.textContent = theme === "dark" ? "🌙 Dark" : "☀️ Light";
+  }
+
+  if (toggle) {
+    toggle.addEventListener("click", function () {
+      var now = root.getAttribute("data-theme") === "dark" ? "light" : "dark";
+      root.setAttribute("data-theme", now);
+      localStorage.setItem("secfetch_docs_theme", now);
+      syncToggleLabel();
     });
   }
+  syncToggleLabel();
 
+  var navLinks = Array.prototype.slice.call(document.querySelectorAll(".sidebar a[href^='#']"));
+  var sections = Array.prototype.slice.call(document.querySelectorAll(".section[id]"));
+
+  function updateActive() {
+    var top = window.scrollY || document.documentElement.scrollTop;
+    var chosen = sections[0] ? sections[0].id : "";
+    for (var i = 0; i < sections.length; i++) {
+      if (sections[i].offsetTop - 120 <= top) {
+        chosen = sections[i].id;
+      }
+    }
+    navLinks.forEach(function (a) {
+      var id = (a.getAttribute("href") || "").slice(1);
+      a.classList.toggle("is-active", id === chosen);
+    });
+  }
   window.addEventListener("scroll", function () {
-    requestAnimationFrame(updateNav);
+    requestAnimationFrame(updateActive);
   });
-  window.addEventListener("load", updateNav);
+  window.addEventListener("load", updateActive);
 
-  // Copy button for code blocks
-  document.querySelectorAll(".code-block").forEach(function (block) {
+  var blocks = document.querySelectorAll("pre.code");
+  blocks.forEach(function (block) {
     var code = block.querySelector("code");
     if (!code) return;
     var btn = document.createElement("button");
-    btn.type = "button";
     btn.className = "copy-btn";
+    btn.type = "button";
     btn.textContent = "Copy";
-    btn.setAttribute("aria-label", "Copy code");
-    block.style.paddingTop = "2.25rem";
     block.appendChild(btn);
+
     btn.addEventListener("click", function () {
-      var text = code.textContent;
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(text).then(
-          function () {
-            btn.textContent = "Copied!";
-            btn.classList.add("copied");
-            setTimeout(function () {
-              btn.textContent = "Copy";
-              btn.classList.remove("copied");
-            }, 2000);
-          },
-          function () {
-            fallbackCopy(text, btn);
-          }
-        );
-      } else {
-        fallbackCopy(text, btn);
-      }
+      var text = code.textContent || "";
+      navigator.clipboard.writeText(text).then(function () {
+        btn.textContent = "Copied";
+        setTimeout(function () {
+          btn.textContent = "Copy";
+        }, 1200);
+      }).catch(function () {
+        btn.textContent = "Failed";
+        setTimeout(function () {
+          btn.textContent = "Copy";
+        }, 1200);
+      });
     });
   });
-
-  function fallbackCopy(text, btn) {
-    var ta = document.createElement("textarea");
-    ta.value = text;
-    ta.style.position = "fixed";
-    ta.style.opacity = "0";
-    document.body.appendChild(ta);
-    ta.select();
-    try {
-      document.execCommand("copy");
-      btn.textContent = "Copied!";
-      btn.classList.add("copied");
-      setTimeout(function () {
-        btn.textContent = "Copy";
-        btn.classList.remove("copied");
-      }, 2000);
-    } catch (e) {}
-    document.body.removeChild(ta);
-  }
 })();

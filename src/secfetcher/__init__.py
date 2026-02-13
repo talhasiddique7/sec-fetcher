@@ -2,17 +2,13 @@
 Compatibility module for the PyPI distribution name.
 
 The PyPI package is named `secfetcher`, while the primary Python module is `secfetch`.
-Importing from either works:
+This compatibility module intentionally exposes only tar quarter download:
 
-    from secfetch import download_year
-    from secfetcher import download_year
+    from secfetcher import download_quarter_tar
 """
 
-from secfetch import FilingDownloader, download_quarter, download_year
+from secfetch import download_quarter_tar
 
 __all__ = [
-    "FilingDownloader",
-    "download_quarter",
-    "download_year",
+    "download_quarter_tar",
 ]
-
