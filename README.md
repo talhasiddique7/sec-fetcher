@@ -16,7 +16,7 @@ Download SEC EDGAR filings with:
 
 | Link | Description |
 |------|-------------|
-| **[View documentation (GitHub Pages)](https://your-org.github.io/secfetcher/)** | Full docs: install, quickstart, CLI, form types, API reference. |
+| **[View documentation (GitHub Pages)](https://talhasiddique7.github.io/secfetcher/)** | Full docs: install, quickstart, CLI, form types, API reference. |
 | **[docs/index.html](docs/index.html)** | Open in browser for local viewing. |
 
 **Host the docs yourself:** Repo **Settings → Pages →** Deploy from branch **main**, folder **/docs**. See [docs/README.md](docs/README.md).
